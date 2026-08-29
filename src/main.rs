@@ -10,7 +10,8 @@ struct TelemetryState {
 }
 
 fn main() {
-    let (tx, rx) = mpsc::channel();
+    let (tx_physics, rx_physics) = mpsc::channel();
+    let (tx_collision, rx_collision) = mpsc::channel();
     thread::spawn(move || {
         loop {
             let telemetry = TelemetryState {
@@ -20,12 +21,17 @@ fn main() {
             };
 
             thread::sleep(Duration::from_secs(1));
-            tx.send(telemetry).unwrap();
+            tx_physics.send(telemetry).unwrap();
         }
     });
-    for received_data in rx {
+    thread::spawn(move || {
+        for received_data in rx_physics {
+            save_to_database(&received_data);
+            tx_collision.send(received_data).unwrap();
+        }
+    });
+    for received_data in rx_collision {
         analyze_signal(&received_data);
-        save_to_database(&received_data);
     }
 }
 
