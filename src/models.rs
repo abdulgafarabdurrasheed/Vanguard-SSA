@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use sgp4::MinutesSinceEpoch;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TelemetryState {

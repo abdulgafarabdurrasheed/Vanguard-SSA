@@ -3,6 +3,25 @@ use crate::models;
 pub fn check_collision(x: &models::OrbitalTrajectory) {
     println!("Analyzing signal...");
     println!("{} {} {:?}", x.satellite_id, x.is_stable, x.predicted_xyz);
+
+    let debris_xyz: [[f32; 3]; 3] = [
+        [1000.0, 2000.0, 3000.0],
+        [3878.0, -4941.0, 2588.0],
+        [-5000.0, 1000.0, -1000.0],
+    ];
+
+    for debris in debris_xyz {
+        let dist_x = (x.predicted_xyz[0] - debris[0]).powi(2);
+        let dist_y = (x.predicted_xyz[1] - debris[1]).powi(2);
+        let dist_z = (x.predicted_xyz[2] - debris[2]).powi(2);
+        let distance = (dist_x + dist_y + dist_z).sqrt();
+
+        if distance < 100.0 {
+            println!("Collision warning! Distance to debris: {:.2} km", distance);
+        } else {
+            println!("No collision risk. Distance to debris: {:.2} km", distance);
+        }
+    }
 }
 
 pub fn save_to_database(y: &models::TelemetryState) {
