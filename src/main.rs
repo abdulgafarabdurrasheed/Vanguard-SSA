@@ -9,11 +9,14 @@ fn main() {
     let (tx_physics, rx_physics) = mpsc::channel();
     let (tx_collision, rx_collision) = mpsc::channel();
     thread::spawn(move || {
+        let mut current_time = 0.0;
         loop {
+            current_time += 1.5;
             let telemetry = models::TelemetryState {
                 satellite_id: "123456789".to_string(),
                 battery_voltage: 12.3,
                 xyz: [1.2, 3.4, 5.6],
+                minutes_since_epoch: current_time,
             };
 
             let raw_json_string = serde_json::to_string(&telemetry).unwrap();

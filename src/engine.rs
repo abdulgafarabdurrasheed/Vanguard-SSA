@@ -1,10 +1,8 @@
 use crate::models;
-use sgp4::{};
-use chrono::DateTime;
 
 pub fn check_collision(x: &models::OrbitalTrajectory) {
     println!("Analyzing signal...");
-    println!("{} {}", x.satellite_id, x.is_stable);
+    println!("{} {} {:?}", x.satellite_id, x.is_stable, x.predicted_xyz);
 }
 
 pub fn save_to_database(y: &models::TelemetryState) {
@@ -27,7 +25,7 @@ pub fn calculate_trajectory(z: &models::TelemetryState) -> models::OrbitalTrajec
 
     let constants = sgp4::Constants::from_elements(&elements).unwrap();
 
-    let prediction = constants.propagate(sgp4::MinutesSinceEpoch(0.0)).unwrap();
+    let prediction = constants.propagate(sgp4::MinutesSinceEpoch(z.minutes_since_epoch)).unwrap();
 
     models::OrbitalTrajectory {
         satellite_id: name.to_string(),
