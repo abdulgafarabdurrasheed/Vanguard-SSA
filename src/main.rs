@@ -58,7 +58,10 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, tx_broadcast: t
     let mut rx = tx_broadcast.subscribe();
     while let Ok(trajectory) = rx.recv().await {
         let json_string = serde_json::to_string(&trajectory).unwrap();
-        socket.send(axum::extract::ws::Message::Text(Utf8Bytes::from(json_string))).await.unwrap();
+        if socket.send(axum::extract::ws::Message::Text(Utf8Bytes::from(json_string))).await.is_err() {
+            println!("WebSocket connection closed. Specific Client disconnected.");
+            break;
+        }
     }
 }
 
