@@ -4,6 +4,8 @@ mod engine;
 use std::thread;
 use std::time::Duration;
 use std::sync::mpsc;
+use axum::{Router, routing::get};
+use axum::extract::ws::Utf8Bytes;
 
 #[tokio::main]
 async fn main() {
@@ -35,7 +37,31 @@ async fn main() {
             tx_thread2.send(trajectory).unwrap();
         }
     });
-    while let Ok(received_data) = rx_radar.recv().await {
-        engine::check_collision(&received_data);
+    tokio::spawn(async move {
+        while let Ok(received_data) = rx_radar.recv().await {
+            engine::check_collision(&received_data);
+        }
+    });
+    let app: Router = Router::new()
+        .route("/ws", get(ws_handler))
+        .with_state(tx_broadcast.clone());
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+}
+
+async fn ws_handler(ws: axum::extract::ws::WebSocketUpgrade, axum::extract::State(tx_broadcast): axum::extract::State<tokio::sync::broadcast::Sender<models::OrbitalTrajectory>>) -> impl axum::response::IntoResponse {
+    ws.on_upgrade(move |socket| handle_socket(socket, tx_broadcast))
+}
+
+async fn handle_socket(mut socket: axum::extract::ws::WebSocket, tx_broadcast: tokio::sync::broadcast::Sender<models::OrbitalTrajectory>) {
+    let mut rx = tx_broadcast.subscribe();
+    while let Ok(trajectory) = rx.recv().await {
+        let json_string = serde_json::to_string(&trajectory).unwrap();
+        socket.send(axum::extract::ws::Message::Text(Utf8Bytes::from(json_string))).await.unwrap();
     }
 }
+
+//Console JS to stream data from Rust WebSocket server to browser console: 
+//const socket = new WebSocket("ws://127.0.0.1:3000/ws");
+// socket.onmessage = (event) => console.log("Incoming from Rust:", event.data);
