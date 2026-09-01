@@ -5,9 +5,10 @@ use std::thread;
 use std::time::Duration;
 use std::sync::mpsc;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let (tx_physics, rx_physics) = mpsc::channel();
-    let (tx_collision, rx_collision) = mpsc::channel();
+    let (tx_broadcast, _rx_dummy) = tokio::sync::broadcast::channel(100);
     thread::spawn(move || {
         let mut current_time = 0.0;
         loop {
@@ -25,14 +26,16 @@ fn main() {
             tx_physics.send(back_to_struct).unwrap();
         }
     });
+    let mut rx_radar = tx_broadcast.subscribe();
+    let tx_thread2 = tx_broadcast.clone();
     thread::spawn(move || {
         for received_data in rx_physics {
             engine::save_to_database(&received_data);
             let trajectory = engine::calculate_trajectory(&received_data);
-            tx_collision.send(trajectory).unwrap();
+            tx_thread2.send(trajectory).unwrap();
         }
     });
-    for received_data in rx_collision {
+    while let Ok(received_data) = rx_radar.recv().await {
         engine::check_collision(&received_data);
     }
 }

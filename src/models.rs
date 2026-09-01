@@ -8,6 +8,7 @@ pub struct TelemetryState {
     pub minutes_since_epoch: f64,
 }
 
+#[derive(Clone, Debug)]
 pub struct OrbitalTrajectory {
     pub satellite_id: String,
     pub predicted_xyz: [f32; 3],
