@@ -13,4 +13,5 @@ pub struct OrbitalTrajectory {
     pub satellite_id: String,
     pub predicted_xyz: [f32; 3],
     pub is_stable: bool,
+    pub debris_field: Vec<[f32; 3]>,
 }

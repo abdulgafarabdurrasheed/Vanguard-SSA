@@ -1,4 +1,6 @@
 use crate::models;
+use rand;
+use rand::Rng;
 
 pub fn check_collision(x: &models::OrbitalTrajectory) {
     println!("Analyzing signal...");
@@ -54,5 +56,24 @@ pub fn calculate_trajectory(z: &models::TelemetryState) -> models::OrbitalTrajec
             prediction.position[2] as f32
         ],
         is_stable: true,
+        debris_field: generate_debris(250),
     }
+}
+
+pub fn generate_debris(count: usize) -> Vec<[f32; 3]> {
+    let mut rng = rand::thread_rng();
+    let mut debris = Vec::new();
+
+    for _ in  0..count{
+        let r = rng.gen_range(6500.0..8000.0);
+        let theta = rng.gen_range(0.0..std::f32::consts::TAU);
+        let phi = rng.gen_range(0.0..std::f32::consts::PI);
+
+        let x = r * phi.sin() * theta.cos();
+        let y = r * phi.sin() * theta.sin();
+        let z = r * phi.cos();
+
+        debris.push([x, y, z]);
+    }
+    debris
 }

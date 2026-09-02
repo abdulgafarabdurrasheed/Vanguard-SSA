@@ -13,8 +13,9 @@ async fn main() {
     let (tx_broadcast, _rx_dummy) = tokio::sync::broadcast::channel(100);
     thread::spawn(move || {
         let mut current_time = 0.0;
+        let time_step = 0.144; //for 1sec = 9 minutes or 0.000266 for 1 sec = 1 seconds or 0.024 for 1 sec = 90 seconds
         loop {
-            current_time += 1.5;
+            current_time += time_step;
             let telemetry = models::TelemetryState {
                 satellite_id: "123456789".to_string(),
                 battery_voltage: 12.3,
@@ -23,7 +24,7 @@ async fn main() {
             };
 
             let raw_json_string = serde_json::to_string(&telemetry).unwrap();
-            thread::sleep(Duration::from_secs(1));
+            thread::sleep(Duration::from_millis(16));
             let back_to_struct: models::TelemetryState = serde_json::from_str(&raw_json_string).unwrap();
             tx_physics.send(back_to_struct).unwrap();
         }
