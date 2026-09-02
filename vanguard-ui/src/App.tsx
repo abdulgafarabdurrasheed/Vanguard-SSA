@@ -4,9 +4,11 @@ import './index.css'
 import React, { useState, useEffect, Suspense } from 'react'
 import { ISS } from './3dmodels';
 import { Earth } from './3dmodels';
+import { Debris } from './debris';
 
 function App() {
   const [coordinates, setCoordinates] = useState<[number, number, number]>([0, 0, 0]);
+  const [debrisData, setDebrisData] = useState<[number, number, number][]>([]);
 
   useEffect(() => {
     const socket = new WebSocket("ws://127.0.0.1:3000/ws");
@@ -18,6 +20,7 @@ function App() {
         data.predicted_xyz[2] / 6371, 
         data.predicted_xyz[1] / 6371
       ]);
+      setDebrisData(data.debris_field);
     };
 
     return () => {
@@ -33,6 +36,7 @@ function App() {
       <Suspense fallback={null}>
         <Earth />
         <ISS position={coordinates} />
+        <Debris data={debrisData} />
       </Suspense>
       <OrbitControls />
     </Canvas>
