@@ -1,7 +1,9 @@
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import './index.css'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
+import { ISS } from './3dmodels';
+import { Earth } from './3dmodels';
 
 function App() {
   const [coordinates, setCoordinates] = useState<[number, number, number]>([0, 0, 0]);
@@ -13,8 +15,8 @@ function App() {
       console.log("Incoming from Rust:", data);
       setCoordinates([
         data.predicted_xyz[0] / 6371, 
-        data.predicted_xyz[1] / 6371, 
-        data.predicted_xyz[2] / 6371
+        data.predicted_xyz[2] / 6371, 
+        data.predicted_xyz[1] / 6371
       ]);
     };
 
@@ -28,14 +30,10 @@ function App() {
     <Canvas>
       <ambientLight intensity={0.5} />
       <pointLight position={[10, 10, 10]} />
-      <mesh>
-        <sphereGeometry args={[1, 32, 32]} />
-        <meshPhongMaterial color={'#4a90e2'} />
-      </mesh>
-      <mesh position={coordinates}>
-        <sphereGeometry args={[0.1, 32, 32]} />
-        <meshPhongMaterial color={'#e24a4a'} />
-      </mesh>
+      <Suspense fallback={null}>
+        <Earth />
+        <ISS position={coordinates} />
+      </Suspense>
       <OrbitControls />
     </Canvas>
   )
