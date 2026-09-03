@@ -32,9 +32,10 @@ async fn main() {
     let mut rx_radar = tx_broadcast.subscribe();
     let tx_thread2 = tx_broadcast.clone();
     thread::spawn(move || {
+        let debris = engine::generate_debris(10);
         for received_data in rx_physics {
             engine::save_to_database(&received_data);
-            let trajectory = engine::calculate_trajectory(&received_data);
+            let trajectory = engine::calculate_trajectory(&received_data, &debris);
             tx_thread2.send(trajectory).unwrap();
         }
     });

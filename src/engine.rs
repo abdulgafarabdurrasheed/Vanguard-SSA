@@ -25,7 +25,7 @@ pub fn save_to_database(y: &models::TelemetryState) {
     println!("{:?}", y.xyz);
 }
 
-pub fn calculate_trajectory(z: &models::TelemetryState) -> models::OrbitalTrajectory {
+pub fn calculate_trajectory(z: &models::TelemetryState, debris: &Vec<[f32; 3]>) -> models::OrbitalTrajectory {
     println!("Calculating trajectory...");
 
     let name = "ISS (ZARYA)";
@@ -50,8 +50,9 @@ pub fn calculate_trajectory(z: &models::TelemetryState) -> models::OrbitalTrajec
             prediction.position[2] as f32
         ],
         is_stable: true,
-        debris_field: generate_debris(250),
+        debris_field: debris.clone(),
     }
+
 }
 
 pub fn generate_debris(count: usize) -> Vec<[f32; 3]> {
