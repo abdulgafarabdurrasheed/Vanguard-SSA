@@ -2,7 +2,8 @@ use crate::models;
 use rand;
 use rand::Rng;
 
-pub fn check_collision(x: &models::OrbitalTrajectory) {
+pub fn check_collision(x: &models::OrbitalTrajectory) -> bool {
+    let mut collision_warning = false;
     println!("Analyzing signal...");
     println!("{} {} {:?} {:?}", x.satellite_id, x.is_stable, x.predicted_xyz, x.debris_field);
 
@@ -12,12 +13,13 @@ pub fn check_collision(x: &models::OrbitalTrajectory) {
         let dist_z = (x.predicted_xyz[2] - debris[2]).powi(2);
         let distance = (dist_x + dist_y + dist_z).sqrt();
 
-        if distance < 100.0 {
+        if distance < 1000.0 {
             println!("Collision warning! Distance to debris: {:.2} km", distance);
-        } else {
-            println!("No collision risk. Distance to debris: {:.2} km", distance);
+            collision_warning = true;
+            break;
         }
     }
+    collision_warning
 }
 
 pub fn save_to_database(y: &models::TelemetryState) {
@@ -50,6 +52,7 @@ pub fn calculate_trajectory(z: &models::TelemetryState, debris: &Vec<[f32; 3]>) 
             prediction.position[2] as f32
         ],
         is_stable: true,
+        collision_warning: false,
         debris_field: debris.clone(),
     }
 

@@ -10,12 +10,14 @@ export function Debris({ data }: { data: [number, number, number][] }) {
 
     const asteroidGeometry = useMemo(() => {
         let geo: THREE.BufferGeometry | null = null;
+        let mat: THREE.Material | THREE.Material[] | null = null;
         scene.traverse((child) => {
             if ((child as THREE.Mesh).isMesh) {
                 geo = (child as THREE.Mesh).geometry;
+                mat = (child as THREE.Mesh).material;
             }
         });
-        return geo;
+        return { geo, mat };
     }, [scene]);
 
     useEffect(() => {
@@ -24,7 +26,7 @@ export function Debris({ data }: { data: [number, number, number][] }) {
         data.forEach((coords, index) => {
             dummy.position.set(coords[0] / 6371, coords[2] / 6371, coords[1] / 6371);
             
-            dummy.scale.set(0.005, 0.005, 0.005);
+            dummy.scale.set(0.01, 0.01, 0.01);
             dummy.updateMatrix();
             
             meshRef.current!.setMatrixAt(index, dummy.matrix);
@@ -33,11 +35,9 @@ export function Debris({ data }: { data: [number, number, number][] }) {
         meshRef.current.instanceMatrix.needsUpdate = true;
     }, [dummy, data, asteroidGeometry]);
 
-    if (!asteroidGeometry) return null;
+    if (!asteroidGeometry.geo || !asteroidGeometry.mat) return null;
 
     return (
-        <instancedMesh ref={meshRef} args={[asteroidGeometry, undefined, data.length]}>
-            <meshStandardMaterial color="#888888" roughness={0.8} />
-        </instancedMesh>
+        <instancedMesh ref={meshRef} args={[asteroidGeometry.geo, asteroidGeometry.mat, data.length]}></instancedMesh>
     );
 }

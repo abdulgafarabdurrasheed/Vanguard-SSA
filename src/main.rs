@@ -32,18 +32,15 @@ async fn main() {
     let mut rx_radar = tx_broadcast.subscribe();
     let tx_thread2 = tx_broadcast.clone();
     thread::spawn(move || {
-        let debris = engine::generate_debris(10);
+        let debris = engine::generate_debris(100);
         for received_data in rx_physics {
             engine::save_to_database(&received_data);
-            let trajectory = engine::calculate_trajectory(&received_data, &debris);
+            let mut trajectory = engine::calculate_trajectory(&received_data, &debris);
+            trajectory.collision_warning = engine::check_collision(&trajectory);
             tx_thread2.send(trajectory).unwrap();
         }
     });
-    tokio::spawn(async move {
-        while let Ok(received_data) = rx_radar.recv().await {
-            engine::check_collision(&received_data);
-        }
-    });
+
     let app: Router = Router::new()
         .route("/ws", get(ws_handler))
         .with_state(tx_broadcast.clone());

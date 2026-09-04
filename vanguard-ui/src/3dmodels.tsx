@@ -21,7 +21,7 @@ export function Earth() {
     )
 }
 
-export function ISS({ position }: { position: [number, number, number] }) {
+export function ISS({ position, collisionDetected }: { position: [number, number, number]; collisionDetected: boolean }) {
     const { scene } = useGLTF('/iss.glb')
     
     return (
@@ -30,27 +30,10 @@ export function ISS({ position }: { position: [number, number, number] }) {
             
             <mesh>
                 <sphereGeometry args={[0.025, 32, 32]} />
-                <meshBasicMaterial color="#00ffcc" transparent opacity={0.3} depthWrite={false} />
+                <meshBasicMaterial color={collisionDetected ? "#ff0000" : "#00ffcc"} transparent opacity={0.3} depthWrite={false} />
             </mesh>
             
-            <pointLight distance={1.5} intensity={2} color="#00ffcc" />
-        </group>
-    );
-}
-
-export function Asteroid({ position }: { position: [number, number, number] }) {
-    const { scene } = useGLTF('/asteroid.glb');
-
-    return (
-        <group position={position}>
-            <primitive object={scene} scale={0.0005} />
-            
-            <mesh>
-                <sphereGeometry args={[0.025, 32, 32]} />
-                <meshBasicMaterial color="#ffcc00" transparent opacity={0.3} depthWrite={false} />
-            </mesh>
-            
-            <pointLight distance={1.5} intensity={2} color="#ffcc00" />
+            <pointLight distance={1.5} intensity={2} color={collisionDetected ? "#ff0000" : "#00ffcc"} />
         </group>
     );
 }

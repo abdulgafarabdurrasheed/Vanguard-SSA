@@ -9,6 +9,7 @@ import { Debris } from './debris';
 function App() {
   const [coordinates, setCoordinates] = useState<[number, number, number]>([0, 0, 0]);
   const [debrisData, setDebrisData] = useState<[number, number, number][]>([]);
+  const [collisionDetected, setCollisionDetected] = useState(false);
 
   useEffect(() => {
     const socket = new WebSocket("ws://127.0.0.1:3000/ws");
@@ -20,6 +21,7 @@ function App() {
         data.predicted_xyz[2] / 6371, 
         data.predicted_xyz[1] / 6371
       ]);
+      setCollisionDetected(data.collision_warning);
       setDebrisData(data.debris_field);
     };
 
@@ -35,7 +37,7 @@ function App() {
       <pointLight position={[10, 10, 10]} />
       <Suspense fallback={null}>
         <Earth />
-        <ISS position={coordinates} />
+        <ISS position={coordinates} collisionDetected={collisionDetected} />
         <Debris data={debrisData} />
       </Suspense>
       <OrbitControls />
