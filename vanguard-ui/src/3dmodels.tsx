@@ -37,3 +37,20 @@ export function ISS({ position }: { position: [number, number, number] }) {
         </group>
     );
 }
+
+export function Asteroid({ position }: { position: [number, number, number] }) {
+    const { scene } = useGLTF('/asteroid.glb');
+
+    return (
+        <group position={position}>
+            <primitive object={scene} scale={0.0005} />
+            
+            <mesh>
+                <sphereGeometry args={[0.025, 32, 32]} />
+                <meshBasicMaterial color="#ffcc00" transparent opacity={0.3} depthWrite={false} />
+            </mesh>
+            
+            <pointLight distance={1.5} intensity={2} color="#ffcc00" />
+        </group>
+    );
+}

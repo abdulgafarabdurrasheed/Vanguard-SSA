@@ -1,30 +1,43 @@
 import { useEffect, useMemo, useRef } from "react";
-import { InstancedMesh, Object3D } from "three";
+import * as THREE from "three";
+import { useGLTF } from "@react-three/drei";
 
 export function Debris({ data }: { data: [number, number, number][] }) {
-    const meshRef = useRef<InstancedMesh | null>(null);
-    const dummy = useMemo(() => new Object3D(), []);
+    const meshRef = useRef<THREE.InstancedMesh>(null);
+    const dummy = useMemo(() => new THREE.Object3D(), []);
+    
+    const { scene } = useGLTF('/asteroid.glb');
 
-    useEffect(() => {
-        data.forEach((coords: [number, number, number], index: number) => {
-            if (meshRef.current) {
-                dummy.position.set(coords[0] / 6371, coords[2] / 6371, coords[1] / 6371);
-                dummy.updateMatrix();
-                
-                meshRef.current.setMatrixAt(index, dummy.matrix);
+    const asteroidGeometry = useMemo(() => {
+        let geo: THREE.BufferGeometry | null = null;
+        scene.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+                geo = (child as THREE.Mesh).geometry;
             }
         });
+        return geo;
+    }, [scene]);
 
-        if (meshRef.current) {
-            meshRef.current.instanceMatrix.needsUpdate = true;
-        }
+    useEffect(() => {
+        if (!meshRef.current || !asteroidGeometry) return;
 
-    }, [dummy, data]);
+        data.forEach((coords, index) => {
+            dummy.position.set(coords[0] / 6371, coords[2] / 6371, coords[1] / 6371);
+            
+            dummy.scale.set(0.005, 0.005, 0.005);
+            dummy.updateMatrix();
+            
+            meshRef.current!.setMatrixAt(index, dummy.matrix);
+        });
+
+        meshRef.current.instanceMatrix.needsUpdate = true;
+    }, [dummy, data, asteroidGeometry]);
+
+    if (!asteroidGeometry) return null;
 
     return (
-        <instancedMesh ref={meshRef} args={[undefined, undefined, 250]}>
-            <boxGeometry args={[0.01, 0.01, 0.01]} />
-            <meshBasicMaterial color="red" />
+        <instancedMesh ref={meshRef} args={[asteroidGeometry, undefined, data.length]}>
+            <meshStandardMaterial color="#888888" roughness={0.8} />
         </instancedMesh>
     );
 }
