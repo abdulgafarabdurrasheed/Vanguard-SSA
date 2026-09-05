@@ -9,6 +9,9 @@ use axum::extract::ws::Utf8Bytes;
 
 #[tokio::main]
 async fn main() {
+    let live_data_future = engine::get_live_data();
+    let live_data = live_data_future.await;
+    println!("Live data received: {}", live_data);
     let (tx_physics, rx_physics) = mpsc::channel();
     let (tx_broadcast, _rx_dummy) = tokio::sync::broadcast::channel(100);
     thread::spawn(move || {
@@ -29,13 +32,15 @@ async fn main() {
             tx_physics.send(back_to_struct).unwrap();
         }
     });
-    let mut rx_radar = tx_broadcast.subscribe();
     let tx_thread2 = tx_broadcast.clone();
     thread::spawn(move || {
-        let debris = engine::generate_debris(100);
+        println!("Live data received: {}", live_data);
+
+        let catalog = engine::parse_live_data_to_first_150_strings(&live_data);
+
         for received_data in rx_physics {
             engine::save_to_database(&received_data);
-            let mut trajectory = engine::calculate_trajectory(&received_data, &debris);
+            let mut trajectory = engine::calculate_trajectory(&received_data, &catalog);
             trajectory.collision_warning = engine::check_collision(&trajectory);
             tx_thread2.send(trajectory).unwrap();
         }

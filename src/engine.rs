@@ -1,6 +1,4 @@
 use crate::models;
-use rand;
-use rand::Rng;
 
 pub fn check_collision(x: &models::OrbitalTrajectory) -> bool {
     let mut collision_warning = false;
@@ -27,25 +25,25 @@ pub fn save_to_database(y: &models::TelemetryState) {
     println!("{:?}", y.xyz);
 }
 
-pub fn calculate_trajectory(z: &models::TelemetryState, debris: &Vec<[f32; 3]>) -> models::OrbitalTrajectory {
+pub fn calculate_trajectory(z: &models::TelemetryState, live_data: &Vec<sgp4::Constants>) -> models::OrbitalTrajectory {
     println!("Calculating trajectory...");
+    let mut debris = Vec::new();
 
-    let name = "ISS (ZARYA)";
-    let line1 = "1 25544U 98067A   26243.14365400  .00005331  00000+0  10505-3 0  9995";
-    let line2 = "2 25544  51.6314 289.0986 0005054  92.1995 267.9572 15.48946173583375";
-
-    let elements = sgp4::Elements::from_tle(
-        Some(name.to_string()),
-        line1.as_bytes(),
-        line2.as_bytes()
-    ).unwrap();
-
-    let constants = sgp4::Constants::from_elements(&elements).unwrap();
-
-    let prediction = constants.propagate(sgp4::MinutesSinceEpoch(z.minutes_since_epoch)).unwrap();
+    for satellite in live_data {
+        let prediction = satellite.propagate(sgp4::MinutesSinceEpoch(z.minutes_since_epoch)).unwrap();
+        debris.push([
+            prediction.position[0] as f32,
+            prediction.position[1] as f32,
+            prediction.position[2] as f32
+        ]);
+    }
+    let primary_satellite = live_data.first().unwrap();
+    let prediction = primary_satellite
+        .propagate(sgp4::MinutesSinceEpoch(z.minutes_since_epoch))
+        .unwrap();
 
     models::OrbitalTrajectory {
-        satellite_id: name.to_string(),
+        satellite_id: "unknown_satellite".to_string(),
         predicted_xyz: [
             prediction.position[0] as f32,
             prediction.position[1] as f32,
@@ -53,25 +51,32 @@ pub fn calculate_trajectory(z: &models::TelemetryState, debris: &Vec<[f32; 3]>) 
         ],
         is_stable: true,
         collision_warning: false,
-        debris_field: debris.clone(),
+        debris_field: debris,
     }
 
 }
 
-pub fn generate_debris(count: usize) -> Vec<[f32; 3]> {
-    let mut rng = rand::thread_rng();
-    let mut debris = Vec::new();
+pub async fn get_live_data() -> String {
+    reqwest::get("https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle")
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap()
+}
 
-    for _ in  0..count{
-        let r = rng.gen_range(6500.0..8000.0);
-        let theta = rng.gen_range(0.0..std::f32::consts::TAU);
-        let phi = rng.gen_range(0.0..std::f32::consts::PI);
-
-        let x = r * phi.sin() * theta.cos();
-        let y = r * phi.sin() * theta.sin();
-        let z = r * phi.cos();
-
-        debris.push([x, y, z]);
+pub fn parse_live_data_to_first_150_strings(live_data: &str) -> Vec<sgp4::Constants> {
+    let lines: Vec<&str> = live_data.lines().collect();
+    let mut first_150_strings = Vec::new();
+    for line in lines.chunks(3).take(50) {
+        if line.len() == 3 {
+            let elements = sgp4::Elements::from_tle(
+                Some(line[0].to_string()),
+                line[1].as_bytes(),
+                line[2].as_bytes()
+            ).unwrap();
+            first_150_strings.push(sgp4::Constants::from_elements(&elements).unwrap())
+        }
     }
-    debris
+    first_150_strings
 }
