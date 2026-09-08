@@ -1,4 +1,5 @@
 use crate::models;
+use std::fs;
 
 pub fn check_collision(x: &models::OrbitalTrajectory) -> bool {
     let mut collision_warning = false;
@@ -57,18 +58,36 @@ pub fn calculate_trajectory(z: &models::TelemetryState, live_data: &Vec<sgp4::Co
 }
 
 pub async fn get_live_data() -> String {
-    reqwest::get("https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle")
-        .await
-        .unwrap()
-        .text()
-        .await
-        .unwrap()
+    let file_path = "active_satellites.txt";
+    let mut needs_fetch = true;
+
+    if let Ok(metadata) = fs::metadata(file_path) {
+        if let Ok(modified) = metadata.modified() {
+            if modified.elapsed().unwrap_or_default().as_secs() < 7200 {
+                needs_fetch = false;
+            }
+        }
+    }
+
+    if needs_fetch {
+        let live_data = reqwest::get("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle")
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+
+        fs::write(file_path, &live_data).unwrap();
+        live_data
+    } else {
+        fs::read_to_string(file_path).unwrap()
+    }
 }
 
 pub fn parse_live_data_to_first_150_strings(live_data: &str) -> Vec<sgp4::Constants> {
     let lines: Vec<&str> = live_data.lines().collect();
     let mut first_150_strings = Vec::new();
-    for line in lines.chunks(3).take(50) {
+    for line in lines.chunks(3).take(2000) {
         if line.len() == 3 {
             let elements = sgp4::Elements::from_tle(
                 Some(line[0].to_string()),

@@ -26,7 +26,7 @@ export function Debris({ data }: { data: [number, number, number][] }) {
         data.forEach((coords, index) => {
             dummy.position.set(coords[0] / 6371, coords[2] / 6371, coords[1] / 6371);
             
-            dummy.scale.set(0.01, 0.01, 0.01);
+            dummy.scale.set(0.001, 0.001, 0.001);
             dummy.updateMatrix();
             
             meshRef.current!.setMatrixAt(index, dummy.matrix);
