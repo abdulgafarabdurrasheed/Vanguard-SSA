@@ -26,19 +26,30 @@ pub fn save_to_database(y: &models::TelemetryState) {
     println!("{:?}", y.xyz);
 }
 
-pub fn calculate_trajectory(z: &models::TelemetryState, live_data: &Vec<sgp4::Constants>) -> models::OrbitalTrajectory {
+pub fn calculate_trajectory(z: &models::TelemetryState, debris_data: &Vec<sgp4::Constants>, satellite_data: &Vec<sgp4::Constants>) -> models::OrbitalTrajectory {
     println!("Calculating trajectory...");
     let mut debris = Vec::new();
+    let mut active_satellite = Vec::new();
 
-    for satellite in live_data {
-        let prediction = satellite.propagate(sgp4::MinutesSinceEpoch(z.minutes_since_epoch)).unwrap();
-        debris.push([
-            prediction.position[0] as f32,
-            prediction.position[1] as f32,
-            prediction.position[2] as f32
-        ]);
+    for deb in debris_data {
+        if let Ok(prediction) = deb.propagate(sgp4::MinutesSinceEpoch(z.minutes_since_epoch)) {
+            debris.push([
+                prediction.position[0] as f32,
+                prediction.position[1] as f32,
+                prediction.position[2] as f32
+            ]);
+        }
     }
-    let primary_satellite = live_data.first().unwrap();
+    for sat in satellite_data {
+        if let Ok(prediction) = sat.propagate(sgp4::MinutesSinceEpoch(z.minutes_since_epoch)) {
+            active_satellite.push([
+                prediction.position[0] as f32,
+                prediction.position[1] as f32,
+                prediction.position[2] as f32
+            ]);
+        }
+    }
+    let primary_satellite = satellite_data.first().unwrap();
     let prediction = primary_satellite
         .propagate(sgp4::MinutesSinceEpoch(z.minutes_since_epoch))
         .unwrap();
@@ -53,34 +64,45 @@ pub fn calculate_trajectory(z: &models::TelemetryState, live_data: &Vec<sgp4::Co
         is_stable: true,
         collision_warning: false,
         debris_field: debris,
+        active_satellite,
     }
 
 }
 
-pub async fn get_live_data() -> String {
-    let file_path = "active_satellites.txt";
+pub async fn get_live_data() -> (String, String) {
+    let satellite_file_path = "active_satellites.txt";
+    let debris_file_path = "debris.txt";
     let mut needs_fetch = true;
 
-    if let Ok(metadata) = fs::metadata(file_path) {
-        if let Ok(modified) = metadata.modified() {
-            if modified.elapsed().unwrap_or_default().as_secs() < 7200 {
+    if let (Ok(sat_meta), Ok(deb_meta)) = (fs::metadata(satellite_file_path), fs::metadata(debris_file_path)) {
+        if let (Ok(sat_mod), Ok(deb_mod)) = (sat_meta.modified(), deb_meta.modified()) {
+            if sat_mod.elapsed().unwrap_or_default().as_secs() < 7200
+                && deb_mod.elapsed().unwrap_or_default().as_secs() < 7200 {
                 needs_fetch = false;
             }
         }
     }
 
     if needs_fetch {
-        let live_data = reqwest::get("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle")
+        let live_satellite_data = reqwest::get("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle")
             .await
             .unwrap()
             .text()
             .await
             .unwrap();
 
-        fs::write(file_path, &live_data).unwrap();
-        live_data
+        let live_debris_data = reqwest::get("https://celestrak.org/NORAD/elements/gp.php?GROUP=iridium-33-debris&FORMAT=tle")
+            .await
+            .unwrap()
+            .text()
+            .await
+            .unwrap();
+
+        fs::write(satellite_file_path, &live_satellite_data).unwrap();
+        fs::write(debris_file_path, &live_debris_data).unwrap();
+        (live_satellite_data, live_debris_data)
     } else {
-        fs::read_to_string(file_path).unwrap()
+        (fs::read_to_string(satellite_file_path).unwrap(), fs::read_to_string(debris_file_path).unwrap())
     }
 }
 

@@ -10,13 +10,14 @@ use axum::extract::ws::Utf8Bytes;
 #[tokio::main]
 async fn main() {
     let live_data_future = engine::get_live_data();
-    let live_data = live_data_future.await;
-    println!("Live data received: {}", live_data);
+    let (live_satellite_data, live_debris_data) = live_data_future.await;
+    println!("Live satellite data received: {}", live_satellite_data);
+    println!("Live debris data received: {}", live_debris_data);
     let (tx_physics, rx_physics) = mpsc::channel();
     let (tx_broadcast, _rx_dummy) = tokio::sync::broadcast::channel(100);
     thread::spawn(move || {
         let mut current_time = 0.0;
-        let time_step = 0.144; //for 1sec = 9 minutes or 0.000266 for 1 sec = 1 seconds or 0.024 for 1 sec = 90 seconds
+        let time_step = 0.144; //for 1sec = 9 minutes, or 0.000266 for 1 sec = 1 second, or 0.024 for 1 sec = 90 seconds
         loop {
             current_time += time_step;
             let telemetry = models::TelemetryState {
@@ -34,13 +35,15 @@ async fn main() {
     });
     let tx_thread2 = tx_broadcast.clone();
     thread::spawn(move || {
-        println!("Live data received: {}", live_data);
+        println!("Live data received: {}", &live_satellite_data);
+        println!("Live debris data received: {}", &live_debris_data);
 
-        let catalog = engine::parse_live_data_to_first_150_strings(&live_data);
+        let catalog = engine::parse_live_data_to_first_150_strings(&live_satellite_data);
+        let debris_catalog = engine::parse_live_data_to_first_150_strings(&live_debris_data);
 
         for received_data in rx_physics {
             engine::save_to_database(&received_data);
-            let mut trajectory = engine::calculate_trajectory(&received_data, &catalog);
+            let mut trajectory = engine::calculate_trajectory(&received_data, &debris_catalog, &catalog);
             trajectory.collision_warning = engine::check_collision(&trajectory);
             tx_thread2.send(trajectory).unwrap();
         }

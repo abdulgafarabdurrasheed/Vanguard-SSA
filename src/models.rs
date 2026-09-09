@@ -15,4 +15,5 @@ pub struct OrbitalTrajectory {
     pub is_stable: bool,
     pub debris_field: Vec<[f32; 3]>,
     pub collision_warning: bool,
+    pub active_satellite: Vec<[f32; 3]>,
 }
