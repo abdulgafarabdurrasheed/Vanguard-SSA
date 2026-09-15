@@ -4,11 +4,12 @@ import './index.css'
 import React, { useState, useEffect, Suspense } from 'react'
 import { ISS } from './3dmodels';
 import { Earth } from './3dmodels';
-import { Debris } from './debris';
+import { Debris, Satellites } from './debris';
 
 function App() {
   const [coordinates, setCoordinates] = useState<[number, number, number]>([0, 0, 0]);
   const [debrisData, setDebrisData] = useState<[number, number, number][]>([]);
+  const [activeSatellite, setActiveSatellite] = useState<[number, number, number][]>([]);
   const [collisionDetected, setCollisionDetected] = useState(false);
 
   useEffect(() => {
@@ -23,6 +24,7 @@ function App() {
       ]);
       setCollisionDetected(data.collision_warning);
       setDebrisData(data.debris_field);
+      setActiveSatellite(data.active_satellite);
     };
 
     return () => {
@@ -38,6 +40,7 @@ function App() {
       <Suspense fallback={null}>
         <Earth />
         <ISS position={coordinates} collisionDetected={collisionDetected} />
+        <Satellites data={activeSatellite} />
         <Debris data={debrisData} />
       </Suspense>
       <OrbitControls />
