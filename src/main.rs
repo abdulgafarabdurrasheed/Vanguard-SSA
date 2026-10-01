@@ -16,15 +16,13 @@ async fn main() {
     let (tx_physics, rx_physics) = mpsc::channel();
     let (tx_broadcast, _rx_dummy) = tokio::sync::broadcast::channel(100);
     thread::spawn(move || {
-        let mut current_time = 0.0;
-        let time_step = 0.000266; //0.144 for 1sec = 9 minutes, or 0.000266 for 1 sec = 1 second, or 0.024 for 1 sec = 90 seconds
         loop {
-            current_time += time_step;
+            let current_time = chrono::Utc::now().timestamp();
             let telemetry = models::TelemetryState {
                 satellite_id: "123456789".to_string(),
                 battery_voltage: 12.3,
                 xyz: [1.2, 3.4, 5.6],
-                minutes_since_epoch: current_time,
+                universal_timestamp: current_time,
             };
 
             let raw_json_string = serde_json::to_string(&telemetry).unwrap();

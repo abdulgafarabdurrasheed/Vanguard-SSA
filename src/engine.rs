@@ -26,13 +26,15 @@ pub fn save_to_database(y: &models::TelemetryState) {
     println!("{:?}", y.xyz);
 }
 
-pub fn calculate_trajectory(z: &models::TelemetryState, debris_data: &Vec<sgp4::Constants>, satellite_data: &Vec<sgp4::Constants>) -> models::OrbitalTrajectory {
+pub fn calculate_trajectory(z: &models::TelemetryState, debris_data: &Vec<(sgp4::Elements, sgp4::Constants)>, satellite_data: &Vec<(sgp4::Elements, sgp4::Constants)>) -> models::OrbitalTrajectory {
     println!("Calculating trajectory...");
     let mut debris = Vec::new();
     let mut active_satellite = Vec::new();
 
-    for deb in debris_data {
-        if let Ok(prediction) = deb.propagate(sgp4::MinutesSinceEpoch(z.minutes_since_epoch)) {
+    for (elements, constants) in debris_data {
+        let seconds_since_epoch = z.universal_timestamp - elements.datetime.and_utc().timestamp();
+        let minutes_since_epoch = seconds_since_epoch as f64 / 60.0;
+        if let Ok(prediction) = constants.propagate(sgp4::MinutesSinceEpoch(minutes_since_epoch)) {
             debris.push([
                 prediction.position[0] as f32,
                 prediction.position[1] as f32,
@@ -40,8 +42,10 @@ pub fn calculate_trajectory(z: &models::TelemetryState, debris_data: &Vec<sgp4::
             ]);
         }
     }
-    for sat in satellite_data {
-        if let Ok(prediction) = sat.propagate(sgp4::MinutesSinceEpoch(z.minutes_since_epoch)) {
+    for (elements, constants) in satellite_data {
+        let seconds_since_epoch = z.universal_timestamp - elements.datetime.and_utc().timestamp();
+        let minutes_since_epoch = seconds_since_epoch as f64 / 60.0;
+        if let Ok(prediction) = constants.propagate(sgp4::MinutesSinceEpoch(minutes_since_epoch)) {
             active_satellite.push([
                 prediction.position[0] as f32,
                 prediction.position[1] as f32,
@@ -50,8 +54,12 @@ pub fn calculate_trajectory(z: &models::TelemetryState, debris_data: &Vec<sgp4::
         }
     }
     let primary_satellite = satellite_data.first().unwrap();
+    let seconds_since_epoch = z.universal_timestamp - primary_satellite.0.datetime.and_utc().timestamp();
+    let minutes_since_epoch = seconds_since_epoch as f64 / 60.0;
+
     let prediction = primary_satellite
-        .propagate(sgp4::MinutesSinceEpoch(z.minutes_since_epoch))
+        .1
+        .propagate(sgp4::MinutesSinceEpoch(minutes_since_epoch))
         .unwrap();
 
     models::OrbitalTrajectory {
@@ -110,7 +118,7 @@ pub async fn get_live_data() -> (String, String) {
     }
 }
 
-pub fn parse_live_data_to_first_150_strings(live_data: &str) -> Vec<sgp4::Constants> {
+pub fn parse_live_data_to_first_150_strings(live_data: &str) -> Vec<(sgp4::Elements, sgp4::Constants)> {
     let lines: Vec<&str> = live_data.lines().collect();
     let mut first_150_strings = Vec::new();
     for line in lines.chunks(3).take(2000) {
@@ -120,7 +128,7 @@ pub fn parse_live_data_to_first_150_strings(live_data: &str) -> Vec<sgp4::Consta
                 line[1].as_bytes(),
                 line[2].as_bytes()
             ).unwrap();
-            first_150_strings.push(sgp4::Constants::from_elements(&elements).unwrap())
+            first_150_strings.push((elements.clone(), sgp4::Constants::from_elements(&elements).unwrap()));
         }
     }
     first_150_strings
