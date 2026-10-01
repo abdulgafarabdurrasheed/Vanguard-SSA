@@ -16,13 +16,16 @@ async fn main() {
     let (tx_physics, rx_physics) = mpsc::channel();
     let (tx_broadcast, _rx_dummy) = tokio::sync::broadcast::channel(100);
     thread::spawn(move || {
+        let start_time = chrono::Utc::now().timestamp_millis() as f64;
         loop {
-            let current_time = chrono::Utc::now().timestamp();
+            let current_time = chrono::Utc::now().timestamp_millis() as f64;
+            let elapsed_time = current_time - start_time;
+            let simulated_time = (start_time / 1000.0) + (elapsed_time / 1000.0) * 60.0; // Simulate time passing at 60x speed
             let telemetry = models::TelemetryState {
                 satellite_id: "123456789".to_string(),
                 battery_voltage: 12.3,
                 xyz: [1.2, 3.4, 5.6],
-                universal_timestamp: current_time,
+                universal_timestamp: simulated_time,
             };
 
             let raw_json_string = serde_json::to_string(&telemetry).unwrap();

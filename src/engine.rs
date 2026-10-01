@@ -32,7 +32,7 @@ pub fn calculate_trajectory(z: &models::TelemetryState, debris_data: &Vec<(sgp4:
     let mut active_satellite = Vec::new();
 
     for (elements, constants) in debris_data {
-        let seconds_since_epoch = z.universal_timestamp - elements.datetime.and_utc().timestamp();
+        let seconds_since_epoch = z.universal_timestamp - elements.datetime.and_utc().timestamp() as f64;
         let minutes_since_epoch = seconds_since_epoch as f64 / 60.0;
         if let Ok(prediction) = constants.propagate(sgp4::MinutesSinceEpoch(minutes_since_epoch)) {
             debris.push([
@@ -43,7 +43,7 @@ pub fn calculate_trajectory(z: &models::TelemetryState, debris_data: &Vec<(sgp4:
         }
     }
     for (elements, constants) in satellite_data {
-        let seconds_since_epoch = z.universal_timestamp - elements.datetime.and_utc().timestamp();
+        let seconds_since_epoch = z.universal_timestamp - elements.datetime.and_utc().timestamp() as f64;
         let minutes_since_epoch = seconds_since_epoch as f64 / 60.0;
         if let Ok(prediction) = constants.propagate(sgp4::MinutesSinceEpoch(minutes_since_epoch)) {
             active_satellite.push([
@@ -54,7 +54,7 @@ pub fn calculate_trajectory(z: &models::TelemetryState, debris_data: &Vec<(sgp4:
         }
     }
     let primary_satellite = satellite_data.first().unwrap();
-    let seconds_since_epoch = z.universal_timestamp - primary_satellite.0.datetime.and_utc().timestamp();
+    let seconds_since_epoch = z.universal_timestamp - primary_satellite.0.datetime.and_utc().timestamp() as f64;
     let minutes_since_epoch = seconds_since_epoch as f64 / 60.0;
 
     let prediction = primary_satellite

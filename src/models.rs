@@ -5,7 +5,7 @@ pub struct TelemetryState {
     pub satellite_id: String,
     pub battery_voltage: f32,
     pub xyz: [f32; 3],
-    pub universal_timestamp: i64
+    pub universal_timestamp: f64
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
