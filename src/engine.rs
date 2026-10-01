@@ -84,19 +84,23 @@ pub async fn get_live_data() -> (String, String) {
     }
 
     if needs_fetch {
-        let live_satellite_data = reqwest::get("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle")
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
+        let live_satellite_data = match reqwest::get("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle")
+            .await {
+                Ok(response) => response.text().await.unwrap_or_default(),
+                Err(e) => {
+                    eprintln!("Error fetching satellite data: {}", e);
+                    fs::read_to_string(satellite_file_path).unwrap_or_default()
+                }
+            };
 
-        let live_debris_data = reqwest::get("https://celestrak.org/NORAD/elements/gp.php?GROUP=iridium-33-debris&FORMAT=tle")
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
+        let live_debris_data = match reqwest::get("https://celestrak.org/NORAD/elements/gp.php?GROUP=iridium-33-debris&FORMAT=tle")
+            .await {
+                Ok(response) => response.text().await.unwrap_or_default(),
+                Err(e) => {
+                    eprintln!("Error fetching debris data: {}", e);
+                    fs::read_to_string(debris_file_path).unwrap_or_default()
+                }
+            };
 
         fs::write(satellite_file_path, &live_satellite_data).unwrap();
         fs::write(debris_file_path, &live_debris_data).unwrap();

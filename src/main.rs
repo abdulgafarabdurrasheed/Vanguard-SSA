@@ -17,7 +17,7 @@ async fn main() {
     let (tx_broadcast, _rx_dummy) = tokio::sync::broadcast::channel(100);
     thread::spawn(move || {
         let mut current_time = 0.0;
-        let time_step = 0.144; //for 1sec = 9 minutes, or 0.000266 for 1 sec = 1 second, or 0.024 for 1 sec = 90 seconds
+        let time_step = 0.000266; //0.144 for 1sec = 9 minutes, or 0.000266 for 1 sec = 1 second, or 0.024 for 1 sec = 90 seconds
         loop {
             current_time += time_step;
             let telemetry = models::TelemetryState {
