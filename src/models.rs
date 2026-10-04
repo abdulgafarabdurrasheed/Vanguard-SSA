@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TelemetryState {
@@ -17,3 +18,11 @@ pub struct OrbitalTrajectory {
     pub collision_warning: bool,
     pub active_satellite: Vec<[f32; 3]>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EngineConfig {
+    pub time_multiplier: f64,
+    pub is_ecef_frame: bool,
+}
+
+pub type SharedEngineConfig = Arc<RwLock<EngineConfig>>;

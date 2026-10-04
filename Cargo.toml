@@ -12,3 +12,4 @@ chrono = "0.4.45"
 tokio = { version = "1.53.1", features = ["full"] }
 axum = { version = "0.8.9", features = ["ws"] }
 reqwest = { version = "0.13.4", features = ["json"] }
+futures = "0.3.32"

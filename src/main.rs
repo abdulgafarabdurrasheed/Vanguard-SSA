@@ -3,24 +3,37 @@ mod engine;
 
 use std::thread;
 use std::time::Duration;
-use std::sync::mpsc;
+use std::sync::{mpsc, RwLock, Arc};
 use axum::{Router, routing::get};
 use axum::extract::ws::Utf8Bytes;
+use futures::{sink::SinkExt, stream::StreamExt};
 
+#[derive(Clone)]
+struct AppState {
+    tx_broadcast: tokio::sync::broadcast::Sender<models::OrbitalTrajectory>,
+    shared_engine_config: models::SharedEngineConfig,
+}
 #[tokio::main]
 async fn main() {
+    let shared_config = Arc::new(RwLock::new(models::EngineConfig {
+        time_multiplier: 60.0,
+        is_ecef_frame: true,
+    }));
+
     let live_data_future = engine::get_live_data();
     let (live_satellite_data, live_debris_data) = live_data_future.await;
     println!("Live satellite data received: {}", live_satellite_data);
     println!("Live debris data received: {}", live_debris_data);
     let (tx_physics, rx_physics) = mpsc::channel();
     let (tx_broadcast, _rx_dummy) = tokio::sync::broadcast::channel(100);
+    let config_clone = Arc::clone(&shared_config);
     thread::spawn(move || {
         let start_time = chrono::Utc::now().timestamp_millis() as f64;
         loop {
             let current_time = chrono::Utc::now().timestamp_millis() as f64;
             let elapsed_time = current_time - start_time;
-            let simulated_time = (start_time / 1000.0) + (elapsed_time / 1000.0) * 60.0; // Simulate time passing at 60x speed
+            let multi = config_clone.read().unwrap().time_multiplier;
+            let simulated_time = (start_time / 1000.0) + (elapsed_time / 1000.0) * multi; // Simulate time passing at 60x speed
             let telemetry = models::TelemetryState {
                 satellite_id: "123456789".to_string(),
                 battery_voltage: 12.3,
@@ -50,25 +63,41 @@ async fn main() {
         }
     });
 
+    let app_state = AppState {
+        tx_broadcast: tx_broadcast.clone(),
+        shared_engine_config: shared_config.clone(),
+    };
+
     let app: Router = Router::new()
         .route("/ws", get(ws_handler))
-        .with_state(tx_broadcast.clone());
+        .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
 
-async fn ws_handler(ws: axum::extract::ws::WebSocketUpgrade, axum::extract::State(tx_broadcast): axum::extract::State<tokio::sync::broadcast::Sender<models::OrbitalTrajectory>>) -> impl axum::response::IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(socket, tx_broadcast))
+async fn ws_handler(ws: axum::extract::ws::WebSocketUpgrade, axum::extract::State(state): axum::extract::State<AppState>) -> impl axum::response::IntoResponse {
+    ws.on_upgrade(move |socket| handle_socket(socket, state))
 }
 
-async fn handle_socket(mut socket: axum::extract::ws::WebSocket, tx_broadcast: tokio::sync::broadcast::Sender<models::OrbitalTrajectory>) {
-    let mut rx = tx_broadcast.subscribe();
-    while let Ok(trajectory) = rx.recv().await {
-        let json_string = serde_json::to_string(&trajectory).unwrap();
-        if socket.send(axum::extract::ws::Message::Text(Utf8Bytes::from(json_string))).await.is_err() {
-            println!("WebSocket connection closed. Specific Client disconnected.");
-            break;
+async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
+    let (mut sender, mut receiver) = socket.split();
+    let mut rx = state.tx_broadcast.subscribe();    tokio::spawn(async move {
+        while let Ok(trajectory) = rx.recv().await {
+            let json_string = serde_json::to_string(&trajectory).unwrap();
+            if sender.send(axum::extract::ws::Message::Text(Utf8Bytes::from(json_string))).await.is_err() {
+                println!("WebSocket connection closed. Specific Client disconnected.");
+                break;
+            }
+        }
+    });
+
+    while let Some(Ok(msg)) = receiver.next().await {
+        if let axum::extract::ws::Message::Text(text) = msg {
+            let new_data: models::EngineConfig = serde_json::from_str(&text).unwrap();
+            let mut config = state.shared_engine_config.write().unwrap();
+            config.time_multiplier = new_data.time_multiplier;
+            config.is_ecef_frame = new_data.is_ecef_frame;
         }
     }
 }
