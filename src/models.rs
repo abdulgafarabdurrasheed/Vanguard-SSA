@@ -6,7 +6,8 @@ pub struct TelemetryState {
     pub satellite_id: String,
     pub battery_voltage: f32,
     pub xyz: [f32; 3],
-    pub universal_timestamp: f64
+    pub universal_timestamp: f64,
+    pub is_ecef_frame: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -17,6 +18,7 @@ pub struct OrbitalTrajectory {
     pub debris_field: Vec<[f32; 3]>,
     pub collision_warning: bool,
     pub active_satellite: Vec<[f32; 3]>,
+    pub universal_timestamp: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

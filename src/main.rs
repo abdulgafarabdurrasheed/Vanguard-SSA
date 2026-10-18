@@ -28,17 +28,25 @@ async fn main() {
     let (tx_broadcast, _rx_dummy) = tokio::sync::broadcast::channel(100);
     let config_clone = Arc::clone(&shared_config);
     thread::spawn(move || {
-        let start_time = chrono::Utc::now().timestamp_millis() as f64;
+        let mut simulated_time = chrono::Utc::now().timestamp_millis() as f64 / 1000.0;
+        let mut last_real_time = chrono::Utc::now().timestamp_millis() as f64;
+
         loop {
-            let current_time = chrono::Utc::now().timestamp_millis() as f64;
-            let elapsed_time = current_time - start_time;
+            let current_real_time = chrono::Utc::now().timestamp_millis() as f64;
+            let delta_time_seconds = (current_real_time - last_real_time) / 1000.0;
+            last_real_time = current_real_time;
+
             let multi = config_clone.read().unwrap().time_multiplier;
-            let simulated_time = (start_time / 1000.0) + (elapsed_time / 1000.0) * multi; // Simulate time passing at 60x speed
+            let is_ecef = config_clone.read().unwrap().is_ecef_frame;
+
+            simulated_time += delta_time_seconds * multi;
+
             let telemetry = models::TelemetryState {
                 satellite_id: "123456789".to_string(),
                 battery_voltage: 12.3,
                 xyz: [1.2, 3.4, 5.6],
                 universal_timestamp: simulated_time,
+                is_ecef_frame: is_ecef,
             };
 
             let raw_json_string = serde_json::to_string(&telemetry).unwrap();
