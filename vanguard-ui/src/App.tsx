@@ -1,7 +1,7 @@
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import './index.css'
-import React, { useState, useEffect, Suspense, useRef } from 'react'
+import { useState, useEffect, Suspense, useRef } from 'react'
 import { ISS } from './3dmodels';
 import { Earth } from './3dmodels';
 import { Debris, Satellites } from './debris';
@@ -19,7 +19,10 @@ function App() {
   const socketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    const socket = new WebSocket("ws://127.0.0.1:3000/ws");
+    const backendUrl = import.meta.env.VITE_BACKEND_URL?.trim() || window.location.origin;
+    const socketUrl = new URL('/ws', backendUrl);
+    socketUrl.protocol = socketUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(socketUrl);
     socketRef.current = socket;
     
     socket.onmessage = (event) => {

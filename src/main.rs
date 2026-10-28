@@ -4,9 +4,10 @@ mod engine;
 use std::thread;
 use std::time::Duration;
 use std::sync::{mpsc, RwLock, Arc};
-use axum::{Router, routing::get};
+use axum::{Json, Router, routing::get};
 use axum::extract::ws::Utf8Bytes;
 use futures::{sink::SinkExt, stream::StreamExt};
+use tower_http::services::ServeDir;
 
 #[derive(Clone)]
 struct AppState {
@@ -14,7 +15,7 @@ struct AppState {
     shared_engine_config: models::SharedEngineConfig,
 }
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shared_config = Arc::new(RwLock::new(models::EngineConfig {
         time_multiplier: 60.0,
         is_ecef_frame: true,
@@ -77,11 +78,19 @@ async fn main() {
     };
 
     let app: Router = Router::new()
+        .route("/health", get(|| async { Json(serde_json::json!({ "status": "ok" })) }))
         .route("/ws", get(ws_handler))
+        .fallback_service(ServeDir::new("public"))
         .with_state(app_state);
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let port = std::env::var("PORT")
+        .ok()
+        .and_then(|value| value.parse::<u16>().ok())
+        .unwrap_or(3000);
+    let listener = tokio::net::TcpListener::bind(("0.0.0.0", port)).await?;
+    println!("Listening on 0.0.0.0:{port}");
+    axum::serve(listener, app).await?;
+    Ok(())
 }
 
 async fn ws_handler(ws: axum::extract::ws::WebSocketUpgrade, axum::extract::State(state): axum::extract::State<AppState>) -> impl axum::response::IntoResponse {
@@ -110,6 +119,6 @@ async fn handle_socket(socket: axum::extract::ws::WebSocket, state: AppState) {
     }
 }
 
-//Console JS to stream data from Rust WebSocket server to browser console: 
-//const socket = new WebSocket("ws://127.0.0.1:3000/ws");
+// Console JS to stream data from Rust WebSocket server to browser console:
+// const socket = new WebSocket("ws://localhost:3000/ws");
 // socket.onmessage = (event) => console.log("Incoming from Rust:", event.data);

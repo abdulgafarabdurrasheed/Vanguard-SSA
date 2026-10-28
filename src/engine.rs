@@ -1,5 +1,6 @@
 use crate::models;
 use std::fs;
+use std::time::Duration;
 
 pub fn check_collision(x: &models::OrbitalTrajectory) -> bool {
     let mut collision_warning = false;
@@ -128,7 +129,14 @@ pub async fn get_live_data() -> (String, String) {
     }
 
     if needs_fetch {
-        let live_satellite_data = match reqwest::get("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle")
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(20))
+            .build()
+            .expect("HTTP client configuration is valid");
+
+        let live_satellite_data = match client
+            .get("https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle")
+            .send()
             .await {
             Ok(response) => response.text().await.unwrap_or_default(),
             Err(e) => {
@@ -137,7 +145,9 @@ pub async fn get_live_data() -> (String, String) {
             }
         };
 
-        let live_debris_data = match reqwest::get("https://celestrak.org/NORAD/elements/gp.php?GROUP=iridium-33-debris&FORMAT=tle")
+        let live_debris_data = match client
+            .get("https://celestrak.org/NORAD/elements/gp.php?GROUP=iridium-33-debris&FORMAT=tle")
+            .send()
             .await {
             Ok(response) => response.text().await.unwrap_or_default(),
             Err(e) => {
